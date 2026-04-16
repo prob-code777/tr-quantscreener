@@ -253,8 +253,8 @@ tr:hover td{background:#141420}
 </div>
 </div>
 </div>
-<!-- UPLOAD -->
-<div id="tab-upload" class="tab-content">
+</script>
+  <div id="tab-upload" class="tab-content">
 <div class="panel">
 <div class="panel-title">Carica Universo Strumenti</div>
 <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event)">
@@ -305,7 +305,60 @@ function renderHeatmap(){const m=document.getElementById('heatMetric').value;con
 function filterHeat(c){alert('Filtro per '+c)}
 function filterUploadByCountry(c){alert('Filtro strumenti per '+c)}
 function renderUploadedInstruments(){if(!instruments.length){document.getElementById('uploadedList').innerHTML='<div class="empty-state">Nessuno strumento caricato</div>';return}const h=`<table><thead><tr><th>ISIN</th><th>Nome</th><th>Paese</th><th>Caricato</th></tr></thead><tbody>${instruments.slice(0,100).map(i=>`<tr><td>${i.isin}</td><td>${i.nome}</td><td>${getFlag(i.paese)} ${i.paese}</td><td>✓</td></tr>`).join('')}</tbody></table>`;document.getElementById('uploadedList').innerHTML=h;document.getElementById('uploadCount').innerHTML=`Visualizzati 100 di ${instruments.length} strumenti totali`}
-function exportCSV(){if(!instruments.length){alert('Nessuno strumento da esportare');return}const h='ISIN,Nome,Paese,Score,RSI,Momentum,Segnale,Sentiment\n';const r=instruments.map(i=>`${i.isin},${i.nome},${i.paese},${i.score},${i.rsi},${i.momentum},${i.segnale},${i.sentiment}`).join('\n');const b=new Blob([h+r],{type:'text/csv'});const l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='tr_quantscreener_export.csv';l.click()}
+function exportCSV(){if(!instruments.length){alert('Nessuno strumento da esportare');return}const h='ISIN,Nome,Paese,Score,RSI,Momentum,Segnale,Sentiment\n';const r=instruments.map(i=>`${i.isin},${i.nome},${i.paese},${i.score},${i.rsi}
+
+// ========== API CONFIGURATION ==========
+const ALPHA_VANTAGE_API_KEY = 'HOT3RXD4W3WIJSZ7';
+
+// ========== FIX viewDetail FUNCTION ==========
+function viewDetail(isin) {
+  const instrument = instruments.find(x => x.isin === isin);
+  if (!instrument) return;
+  
+  // Switch to ticker analysis tab
+  showTab('ticker');
+  
+  // Fill ticker input and analyze
+  document.getElementById('tickerInput').value = instrument.name;
+  analyzeTicker();
+}
+
+// ========== ALPHA VANTAGE API INTEGRATION ==========
+async function fetchRealTimeData(symbol) {
+  try {
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    return data['Global Quote'];
+  } catch (error) {
+    console.error('Error fetching real-time data:', error);
+    return null;
+  }
+}
+
+async function fetchTechnicalIndicators(symbol, indicator = 'RSI') {
+  try {
+    const url = `https://www.alphavantage.co/query?function=${indicator}&symbol=${symbol}&interval=daily&time_period=14&series_type=close&apikey=${ALPHA_VANTAGE_API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching ${indicator}:`, error);
+    return null;
+  }
+}
+
+async function fetchNews(ticker) {
+  try {
+    const url = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}&limit=10`;
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.feed || [];
+  } catch (error) {
+    console.error('Error fetching news:', error);
+    return [];
+  }
+},${i.momentum},${i.segnale},${i.sentiment}`).join('\n');const b=new Blob([h+r],{type:'text/csv'});const l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='tr_quantscreener_export.csv';l.click()}
 setTimeout(()=>{loadNews();if(instruments.length>0)updateDashboard()},1000);
 </script>
 </body>
