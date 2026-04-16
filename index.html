@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}
 body{background:#0a0a0f;color:#e0e0e0;min-height:100vh}
@@ -358,7 +359,230 @@ async function fetchNews(ticker) {
     console.error('Error fetching news:', error);
     return [];
   }
-},${i.momentum},${i.segnale},${i.sentiment}`).join('\n');const b=new Blob([h+r],{type:'text/csv'});const l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='tr_quantscreener_export.csv';l.click()}
+},$
+
+  // ========== UPDATE loadNews TO USE REAL API ==========
+async function loadNews() {
+  const newsContainer = document.getElementById('newsList');
+  if (!newsContainer) return;
+  
+  newsContainer.innerHTML = '<div class="loading-spinner"></div><p>Caricamento news...</p>';
+  
+  try {
+    // Get top market tickers
+    const topTickers = instruments.slice(0, 10).map(i => i.name).join(',');
+    const newsData = await fetchNews(topTickers);
+    
+    if (!newsData || newsData.length === 0) {
+      newsContainer.innerHTML = '<p>Nessuna news disponibile</p>';
+      return;
+    }
+    
+    let html = '';
+    newsData.forEach(article => {
+      const sentiment = article.overall_sentiment_score > 0.15 ? 'Positivo' : 
+                       article.overall_sentiment_score < -0.15 ? 'Negativo' : 'Neutro';
+      const sentimentClass = sentiment === 'Positivo' ? 'positive' : 
+                            sentiment === 'Negativo' ? 'negative' : 'neutral';
+      
+      html += `
+        <div class="news-item">
+          <h4>${article.title}</h4>
+          <p>${article.summary || ''}</p>
+          <div class="news-meta">
+            <span>${new Date(article.time_published).toLocaleString('it-IT')}</span>
+            <span class="badge badge-${sentimentClass}">${sentiment}</span>
+            <a href="${article.url}" target="_blank">Leggi</a>
+          </div>
+        </div>
+      `;
+    });
+    
+    newsContainer.innerHTML = html;
+  } catch (error) {
+    console.error('Error loading news:', error);
+    newsContainer.innerHTML = '<p>Errore caricamento news</p>';
+  }
+}
+
+// ========== UPDATE analyzeTicker TO USE REAL DATA ==========
+async function analyzeTicker() {
+  const tickerInput = document.getElementById('tickerInput');
+  const resultDiv = document.getElementById('tickerResult');
+  
+  if (!tickerInput || !resultDiv) return;
+  
+  const ticker = tickerInput.value.trim().toUpperCase();
+  if (!ticker) {
+    alert('Inserisci un ticker valido');
+    return;
+  }
+  
+  resultDiv.innerHTML = '<div class="loading-spinner"></div><p>Caricamento analisi...</p>';
+  
+  try {
+    // Fetch real data from Alpha Vantage
+    const [quoteData, rsiData, newsData] = await Promise.all([
+      fetchRealTimeData(ticker),
+      fetchTechnicalIndicators(ticker, 'RSI'),
+      fetchNews(ticker)
+    ]);
+    
+    if (!quoteData) {
+      resultDiv.innerHTML = '<p>Ticker non trovato o limite API raggiunto</p>';
+      return;
+    }
+    
+    // Extract real values
+    const price = parseFloat(quoteData['05. price']);
+    const change = parseFloat(quoteData['09. change']);
+    const changePercent = parseFloat(quoteData['10. change percent'].replace('%', ''));
+    const volume = parseInt(quoteData['06. volume']);
+    
+    // Get RSI value
+    let rsi = 50; // default
+    if (rsiData && rsiData['Technical Analysis: RSI']) {
+      const rsiValues = Object.values(rsiData['Technical Analysis: RSI']);
+      if (rsiValues.length > 0) {
+        rsi = parseFloat(rsiValues[0]['RSI']);
+      }
+    }
+    
+    // Calculate sentiment
+    let avgSentiment = 0;
+    if (newsData && newsData.length > 0) {
+      avgSentiment = newsData.reduce((sum, n) => sum + parseFloat(n.overall_sentiment_score || 0), 0) / newsData.length;
+    }
+    
+    const sentiment = avgSentiment > 0.15 ? 'Positivo' : avgSentiment < -0.15 ? 'Negativo' : 'Neutro';
+    const sentimentClass = sentiment === 'Positivo' ? 'positive' : sentiment === 'Negativo' ? 'negative' : 'neutral';
+    
+    // Determine signal
+    let signal = 'HOLD';
+    let signalClass = 'hold';
+    if (rsi < 30 && changePercent < 0) {
+      signal = 'BUY';
+      signalClass = 'buy';
+    } else if (rsi > 70 && changePercent > 0) {
+      signal = 'SELL';
+      signalClass = 'sell';
+    }
+    
+    // Display results
+    let html = `
+      <h3>Analisi Quantitativa: ${ticker}</h3>
+      <div class="ticker-metrics">
+        <div class="metric">
+          <span class="metric-label">Prezzo:</span>
+          <span class="metric-value">€${price.toFixed(2)}</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Variazione:</span>
+          <span class="metric-value ${changePercent >= 0 ? 'positive' : 'negative'}">
+            ${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)
+          </span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Volume:</span>
+          <span class="metric-value">${volume.toLocaleString()}</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">RSI (14):</span>
+          <span class="metric-value">${rsi.toFixed(1)}</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Sentiment News:</span>
+          <span class="badge badge-${sentimentClass}">${sentiment} (${avgSentiment.toFixed(2)})</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Segnale:</span>
+          <span class="badge badge-${signalClass}">${signal}</span>
+        </div>
+      </div>
+      <div id="tickerChart" style="width:100%;height:400px;margin-top:20px;"></div>
+    `;
+    
+    resultDiv.innerHTML = html;
+    
+    // Create chart with real data
+    await createTickerChart(ticker);
+    
+  } catch (error) {
+    console.error('Error analyzing ticker:', error);
+    resultDiv.innerHTML = '<p>Errore durante l\'analisi. Verifica il ticker o riprova più tardi.</p>';
+  }
+}
+
+// ========== CREATE CHART WITH LIGHTWEIGHT CHARTS ==========
+async function createTickerChart(ticker) {
+  const chartContainer = document.getElementById('tickerChart');
+  if (!chartContainer) return;
+  
+  try {
+    // Fetch time series data
+    const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${ticker}&apikey=${ALPHA_VANTAGE_API_KEY}&outputsize=compact`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (!data['Time Series (Daily)']) {
+      chartContainer.innerHTML = '<p>Dati storici non disponibili</p>';
+      return;
+    }
+    
+    // Convert data to lightweight-charts format
+    const timeSeriesData = [];
+    const timeSeries = data['Time Series (Daily)'];
+    
+    Object.keys(timeSeries).reverse().forEach(date => {
+      const dayData = timeSeries[date];
+      timeSeriesData.push({
+        time: date,
+        open: parseFloat(dayData['1. open']),
+        high: parseFloat(dayData['2. high']),
+        low: parseFloat(dayData['3. low']),
+        close: parseFloat(dayData['4. close'])
+      });
+    });
+    
+    // Create chart
+    chartContainer.innerHTML = '';
+    const chart = LightweightCharts.createChart(chartContainer, {
+      width: chartContainer.clientWidth,
+      height: 400,
+      layout: {
+        background: { color: '#1a1a1a' },
+        textColor: '#d1d4dc',
+      },
+      grid: {
+        vertLines: { color: '#2a2a2a' },
+        horzLines: { color: '#2a2a2a' },
+      },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+      }
+    });
+    
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#26a69a',
+      downColor: '#ef5350',
+      borderVisible: false,
+      wickUpColor: '#26a69a',
+      wickDownColor: '#ef5350',
+    });
+    
+    candleSeries.setData(timeSeriesData);
+    
+    // Make chart responsive
+    window.addEventListener('resize', () => {
+      chart.resize(chartContainer.clientWidth, 400);
+    });
+    
+  } catch (error) {
+    console.error('Error creating chart:', error);
+    chartContainer.innerHTML = '<p>Errore caricamento grafico</p>';
+  }
+}{i.momentum},${i.segnale},${i.sentiment}`).join('\n');const b=new Blob([h+r],{type:'text/csv'});const l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='tr_quantscreener_export.csv';l.click()}
 setTimeout(()=>{loadNews();if(instruments.length>0)updateDashboard()},1000);
 </script>
 </body>
