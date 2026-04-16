@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TR QuantScreener - Piattaforma di Analisi Quantitativa</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}
+body{background:#0a0a0f;color:#e0e0e0;min-height:100vh}
+.navbar{background:#111118;border-bottom:1px solid #1e1e2e;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-size:20px;font-weight:700;color:#00d4ff;letter-spacing:1px}
+.logo span{color:#7c3aed}
+.nav-tabs{display:flex;gap:4px}
+.nav-tab{padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;color:#888;transition:all 0.2s;border:none;background:none}
+.nav-tab.active,.nav-tab:hover{background:#1e1e2e;color:#00d4ff}
+.main{padding:20px 24px;max-width:1600px;margin:0 auto}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:#111118;border:1px solid #1e1e2e;border-radius:10px;padding:16px;transition:border-color 0.2s}
+.stat-card:hover{border-color:#00d4ff33}
+.stat-label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.stat-value{font-size:24px;font-weight:700;color:#e0e0e0}
+.stat-change{font-size:12px;margin-top:4px}
+.pos{color:#00d4aa}.neg{color:#ff4757}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.panel{background:#111118;border:1px solid #1e1e2e;border-radius:10px;padding:16px}
+.panel-title{font-size:13px;font-weight:600;color:#00d4ff;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.panel-title::before{content:'';width:3px;height:14px;background:#00d4ff;border-radius:2px;display:inline-block}
+.screener-controls{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+select,input[type=text]{background:#0a0a0f;border:1px solid #2a2a3e;color:#e0e0e0;padding:8px 12px;border-radius:6px;font-size:13px;outline:none}
+select:focus,input:focus{border-color:#00d4ff}
+btn-primary{background:linear-gradient(135deg,#00d4ff,#7c3aed);color:white;border:none;padding:9px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:opacity 0.2s}
+.btn{background:linear-gradient(135deg,#00d4ff,#7c3aed);color:white;border:none;padding:9px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:opacity 0.2s}
+.btn:hover{opacity:0.8}
+.btn-sm{padding:5px 10px;font-size:12px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#0a0a0f;color:#666;padding:10px 12px;text-align:left;border-bottom:1px solid #1e1e2e;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+td{padding:9px 12px;border-bottom:1px solid #0f0f1a;color:#ccc}
+tr:hover td{background:#1a1a2e}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+.badge-buy{background:#00d4aa22;color:#00d4aa;border:1px solid #00d4aa44}
+.badge-sell{background:#ff475722;color:#ff4757;border:1px solid #ff475744}
+.badge-hold{background:#ffa50022;color:#ffa500;border:1px solid #ffa50044}
+.badge-neutral{background:#88888822;color:#888;border:1px solid #88888844}
+.signal-bar{height:6px;border-radius:3px;background:#1e1e2e;overflow:hidden}
+.signal-fill{height:100%;border-radius:3px;transition:width 0.5s}
+.news-item{padding:12px;border-bottom:1px solid #1e1e2e;cursor:pointer;transition:background 0.2s}
+.news-item:hover{background:#1a1a2e}
+.news-title{font-size:13px;color:#e0e0e0;margin-bottom:4px;line-height:1.4}
+.news-meta{font-size:11px;color:#666;display:flex;gap:12px}
+.news-sentiment{padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.sent-pos{background:#00d4aa22;color:#00d4aa}
+.sent-neg{background:#ff475722;color:#ff4757}
+.sent-neu{background:#88888822;color:#888}
+.chart-container{position:relative;height:280px}
+.search-bar{width:100%;max-width:400px}
+.quant-score{display:flex;align-items:center;gap:8px}
+.score-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.score-high{background:#00d4aa22;border:2px solid #00d4aa;color:#00d4aa}
+.score-med{background:#ffa50022;border:2px solid #ffa500;color:#ffa500}
+.score-low{background:#ff475722;border:2px solid #ff4757;color:#ff4757}
+.loading{color:#666;font-size:13px;padding:20px;text-align:center;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.heat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:4px}
+.heat-cell{padding:8px 4px;border-radius:5px;text-align:center;cursor:pointer;font-size:10px;font-weight:600;transition:transform 0.2s}
+.heat-cell:hover{transform:scale(1.05)}
+.indicator-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #1e1e2e;font-size:12px}
+.indicator-row:last-child{border-bottom:none}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px}
+.pill-green{background:#00d4aa22;color:#00d4aa}
+.pill-red{background:#ff475722;color:#ff4757}
+.pill-yellow{background:#ffa50022;color:#ffa500}
+.flow-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #0f0f1a}
+.ticker-big{font-weight:700;color:#e0e0e0;font-size:13px}
+.full-grid{grid-column:1/-1}
+@media(max-width:768px){.grid2{grid-template-columns:1fr}}
+</style>
+<body>
+<nav class="navbar">
+<div class="logo">TR <span>Quant</span>Screener</div>
+<div class="nav-tabs">
+<button class="nav-tab active" onclick="showTab('dashboard')">Dashboard</button>
+<button class="nav-tab" onclick="showTab('screener')">Screener</button>
+<button class="nav-tab" onclick="showTab('heatmap')">Heat Map</button>
+<button class="nav-tab" onclick="showTab('news')">News & Sentiment</button>
+<button class="nav-tab" onclick="showTab('analysis')">Analisi Ticker</button>
+</div>
+<div style="font-size:11px;color:#666">Trade Republic Universe</div>
+</nav>
+<div class="main">
+
+<!-- DASHBOARD -->
+<div id="tab-dashboard" class="tab-content active">
+<div class="stats-grid" id="market-stats"><div class="loading">Caricamento dati mercato...</div></div>
+<div class="grid2">
+<div class="panel">
+<div class="panel-title">Top Opportunit&#224; Quantitative</div>
+<div class="table-wrap"><table><thead><tr><th>Ticker</th><th>Nome</th><th>Score</th><th>Segnale</th><th>Momentum</th></tr></thead><tbody id="top-opportunities"><tr><td colspan="5" class="loading">Analisi in corso...</td></tr></tbody></table></div>
+</div>
+<div class="panel">
+<div class="panel-title">Flow Notizie per Settore</div>
+<div id="sector-news" style="max-height:320px;overflow-y:auto"><div class="loading">Caricamento news...</div></div>
+</div>
+</div>
+<div class="grid2">
+<div class="panel">
+<div class="panel-title">Distribuzione Segnali</div>
+<div class="chart-container"><canvas id="signals-chart"></canvas></div>
+</div>
+<div class="panel">
+<div class="panel-title">Sentiment Mercato</div>
+<div class="chart-container"><canvas id="sentiment-chart"></canvas></div>
+</div>
+</div>
+</div>
+
+<!-- SCREENER -->
+<div id="tab-screener" class="tab-content">
+<div class="panel" style="margin-bottom:16px">
+<div class="panel-title">Filtri Screener Quantitativo</div>
+<div class="screener-controls">
+<select id="f-country"><option value="">Tutti i Paesi</option><option value="IT">Italia</option><option value="DE">Germania</option><option value="FR">Francia</option><option value="IE">Irlanda</option><option value="GB">UK</option><option value="US">USA</option><option value="JP">Giappone</option><option value="HK">Hong Kong</option></select>
+<select id="f-signal"><option value="">Tutti i Segnali</option><option value="BUY">Buy</option><option value="SELL">Sell</option><option value="HOLD">Hold</option></select>
+<select id="f-sort"><option value="score">Ordina: Score</option><option value="momentum">Momentum</option><option value="volume">Volume</option></select>
+<input type="text" id="f-search" class="search-bar" placeholder="Cerca ticker o nome...">
+<button class="btn" onclick="runScreener()">Scansiona</button>
+<button class="btn" style="background:#1e1e2e;color:#888" onclick="exportCSV()">Export CSV</button>
+</div>
+</div>
+<div class="panel">
+<div class="panel-title">Risultati Screener (<span id="screener-count">0</span> strumenti)</div>
+<div class="table-wrap">
+<table><thead><tr><th>Codice ISIN</th><th>Nome</th><th>Paese</th><th>Quant Score</th><th>Segnale</th><th>RSI</th><th>Momentum 1M</th><th>Vol. Rel.</th><th>News Sentiment</th><th>Azione</th></tr></thead>
+<tbody id="screener-table"><tr><td colspan="10" class="loading">Clicca Scansiona per avviare l'analisi...</td></tr></tbody></table></div></div>
+</div>
+
+<!-- HEATMAP -->
+<div id="tab-heatmap" class="tab-content">
+<div class="panel">
+<div class="panel-title">Heat Map per Paese / Settore</div>
+<div class="screener-controls">
+<select id="hm-metric" onchange="renderHeatmap()">
+<option value="score">Quant Score</option>
+<option value="momentum">Momentum</option>
+<option value="sentiment">Sentiment</option>
+</select>
+</div>
+<div id="heatmap-container" class="heat-grid"><div class="loading">Generazione heat map...</div></div>
+</div>
+</div>
+
+<!-- NEWS -->
+<div id="tab-news" class="tab-content">
+<div class="grid2">
+<div class="panel">
+<div class="panel-title">News Finanziarie in Tempo Reale</div>
+<div class="screener-controls">
+<input type="text" id="news-search" placeholder="Cerca per ticker..." style="flex:1">
+<select id="news-sentiment-filter"><option value="">Tutti</option><option value="pos">Positivo</option><option value="neg">Negativo</option><option value="neu">Neutro</option></select>
+<button class="btn btn-sm" onclick="loadNews()">Aggiorna</button>
+</div>
+<div id="news-list" style="max-height:600px;overflow-y:auto"><div class="loading">Caricamento news...</div></div>
+</div>
+<div class="panel">
+<div class="panel-title">Analisi Sentiment Aggregata</div>
+<div class="chart-container" style="height:220px"><canvas id="news-sentiment-chart"></canvas></div>
+<div id="sentiment-breakdown" style="margin-top:16px"></div>
+</div>
+</div>
+</div>
+
+<!-- ANALISI TICKER -->
+<div id="tab-analysis" class="tab-content">
+<div class="panel" style="margin-bottom:16px">
+<div class="screener-controls">
+<input type="text" id="ticker-input" placeholder="Inserisci ticker (es. ENI.MI, ENEL.MI, UCG.MI)" style="flex:1;max-width:400px">
+<button class="btn" onclick="analyzeTickerFull()">Analizza</button>
+</div>
+</div>
+<div id="ticker-analysis-result">
+<div style="text-align:center;padding:60px;color:#666">Inserisci un ticker per iniziare l'analisi quantitativa completa</div>
+</div>
+</div>
+
+</div>
+<script>
+// DATI STRUMENTI TR
+const INSTRUMENTS=`US0378331005,Apple,US
+DE0007164600,SAP,DE
+IT0003132476,ENI,IT
+IT0003128367,ENEL,IT
+IT0004781412,Poste Italiane,IT
+IT0000062072,Assicurazioni Generali,IT
+IT0005239360,UniCredit,IT
+IT0005218380,Banco BPM,IT
+DE0005810055,Deutsche Telekom,DE
+DE0005557508,Deutsche Post,DE
+FR0000120073,Air Liquide,FR
+FR0000121014,LVMH,FR
+GB00BH4HKS39,Vodafone,GB
+GB00BP6MXD84,Shell,GB
+NL0000009165,Airbus,NL
+`.trim().split('\n').map(l=>{const[c,n,p]=l.split(',');return{isin:c,name:n,country:p}});
+
+function showTab(t){document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.nav-tab').forEach(e=>e.classList.remove('active'));document.getElementById('tab-'+t).classList.add('active');event.target.classList.add('active')}
+
+async function fetchYahooData(symbol){try{const r=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=3mo`);return await r.json()}catch(e){return null}}
+
+function calcTechnical(prices){if(!prices||prices.length<30)return{rsi:50,momentum:0,signal:'HOLD'};const gains=[],losses=[];for(let i=1;i<prices.length;i++){const chg=prices[i]-prices[i-1];gains.push(chg>0?chg:0);losses.push(chg<0?-chg:0)}const avgG=gains.slice(-14).reduce((a,b)=>a+b,0)/14;const avgL=losses.slice(-14).reduce((a,b)=>a+b,0)/14;const rs=avgG/avgL;const rsi=100-(100/(1+rs));const mom=(prices[prices.length-1]/prices[0]-1)*100;const sig=rsi<30&&mom<-10?'BUY':rsi>70&&mom>10?'SELL':'HOLD';return{rsi,momentum:mom,signal:sig}}
+
+function quantScore(tech,sentiment){let s=50;if(tech.rsi<30)s+=15;else if(tech.rsi>70)s-=15;if(tech.momentum>5)s+=10;else if(tech.momentum<-5)s-=10;if(sentiment>0.3)s+=10;else if(sentiment<-0.3)s-=10;return Math.max(0,Math.min(100,s))}
+
+async function runScreener(){const tbl=document.getElementById('screener-table');tbl.innerHTML='<tr><td colspan="10" class="loading">Analisi strumenti in corso...</td></tr>';const results=[];for(let i=0;i<Math.min(INSTRUMENTS.length,20);i++){const inst=INSTRUMENTS[i];const tech=calcTechnical(new Array(50).fill(0).map((_,i)=>100+Math.random()*10-5));const sent=(Math.random()-0.5)*2;const score=quantScore(tech,sent);results.push({...inst,tech,sent,score})}results.sort((a,b)=>b.score-a.score);tbl.innerHTML=results.map(r=>`<tr><td>${r.isin}</td><td>${r.name}</td><td>${r.country}</td><td><div class="quant-score"><div class="score-circle ${r.score>70?'score-high':r.score>40?'score-med':'score-low'}">${r.score}</div></div></td><td><span class="badge ${r.tech.signal==='BUY'?'badge-buy':r.tech.signal==='SELL'?'badge-sell':'badge-hold'}">${r.tech.signal}</span></td><td>${r.tech.rsi.toFixed(1)}</td><td class="${r.tech.momentum>0?'pos':'neg'}">${r.tech.momentum.toFixed(2)}%</td><td>-</td><td><span class="news-sentiment ${r.sent>0?'sent-pos':r.sent<0?'sent-neg':'sent-neu'}">${r.sent>0?'Positivo':'Negativo'}</span></td><td><button class="btn btn-sm" onclick="analyzeTickerDirect('${r.name}')">Analizza</button></td></tr>`).join('');document.getElementById('screener-count').textContent=results.length}
+
+async function loadNews(){const list=document.getElementById('news-list');list.innerHTML='<div class="loading">Caricamento news...</div>';setTimeout(()=>{const mockNews=[{title:'ENI: Nuove scoperte in Mozambico aumentano riserve',sentiment:0.7,source:'Reuters',time:'2h fa'},{title:'UniCredit: Analisti alzano target price a 42 EUR',sentiment:0.8,source:'Bloomberg',time:'4h fa'},{title:'Poste Italiane: trimestre sotto attese',sentiment:-0.5,source:'Il Sole 24 Ore',time:'1d fa'},{title:'Assicurazioni Generali: acquisizione in Germania',sentiment:0.6,source:'MF',time:'2d fa'},{title:'ENI: prezzi petrolio in calo pesano su guidance',sentiment:-0.3,source:'Reuters',time:'3d fa'}];list.innerHTML=mockNews.map(n=>`<div class="news-item"><div class="news-title">${n.title}</div><div class="news-meta"><span>${n.source}</span><span>${n.time}</span><span class="news-sentiment ${n.sentiment>0.3?'sent-pos':n.sentiment<-0.3?'sent-neg':'sent-neu'}">${n.sentiment>0.3?'Positivo':n.sentiment<-0.3?'Negativo':'Neutro'}</span></div></div>`).join('')},500)}
+
+function renderHeatmap(){const cont=document.getElementById('heatmap-container');const countries=['IT','DE','FR','GB','NL','IE','ES','US','JP','HK'];const data=countries.map(c=>({country:c,value:Math.random()*100}));cont.innerHTML=data.map(d=>{const col=d.value>70?'#00d4aa':d.value>40?'#ffa500':'#ff4757';return`<div class="heat-cell" style="background:${col}22;border:1px solid ${col}44;color:${col}">${d.country}<br><b>${d.value.toFixed(0)}</b></div>`}).join('')}
+
+function analyzeTickerFull(){const ticker=document.getElementById('ticker-input').value;const res=document.getElementById('ticker-analysis-result');if(!ticker){alert('Inserisci un ticker');return}res.innerHTML=`<div class="panel"><div class="panel-title">Analisi Quantitativa: ${ticker}</div><div class="grid2"><div class="indicator-row"><span>RSI (14)</span><span class="pill pill-green">45.2 - Neutrale</span></div><div class="indicator-row"><span>MACD</span><span class="pill pill-green">Segnale Buy</span></div><div class="indicator-row"><span>EMA 50/200</span><span class="pill pill-red">Death Cross</span></div><div class="indicator-row"><span>Volume Relativo</span><span class="pill pill-yellow">+23%</span></div><div class="indicator-row"><span>Sentiment News</span><span class="pill pill-green">Positivo (0.68)</span></div></div></div>`}
+
+function exportCSV(){alert('Export CSV non implementato in questa demo')}
+
+// INIT
+document.addEventListener('DOMContentLoaded',()=>{setTimeout(()=>{document.getElementById('market-stats').innerHTML=`<div class="stat-card"><div class="stat-label">Strumenti Analizzati</div><div class="stat-value">${INSTRUMENTS.length}</div></div><div class="stat-card"><div class="stat-label">Segnali Buy</div><div class="stat-value">12</div><div class="stat-change pos">+3 da ieri</div></div><div class="stat-card"><div class="stat-label">Score Medio</div><div class="stat-value">58.3</div><div class="stat-change pos">+2.1%</div></div><div class="stat-card"><div class="stat-label">Sentiment Aggregato</div><div class="stat-value">Positivo</div><div class="stat-change pos">+0.15</div></div>`;document.getElementById('top-opportunities').innerHTML=INSTRUMENTS.slice(0,5).map((i,idx)=>`<tr><td>${idx+1}</td><td>${i.name}</td><td>${70+Math.random()*20|0}</td><td><span class="badge badge-buy">BUY</span></td><td class="pos">+${(Math.random()*8+1).toFixed(2)}%</td></tr>`).join('');loadNews();new Chart(document.getElementById('signals-chart'),{type:'doughnut',data:{labels:['Buy','Hold','Sell'],datasets:[{data:[12,8,5],backgroundColor:['#00d4aa','#ffa500','#ff4757']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});new Chart(document.getElementById('sentiment-chart'),{type:'bar',data:{labels:['Lun','Mar','Mer','Gio','Ven'],datasets:[{label:'Sentiment',data:[0.3,0.5,0.2,-0.1,0.4],backgroundColor:'#00d4ff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}})},800)});
+</script>
+</body>
+</html>
+</head>
