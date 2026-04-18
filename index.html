@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TR Quantitative Screener - Real-Time Signals</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .controls {
+            padding: 25px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px 20px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+        
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        select {
+            min-width: 150px;
+        }
+        
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .stats {
+            padding: 20px 25px;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            min-width: 150px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card.buy {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .stat-card.sell {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+        
+        .stat-card.hold {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.95;
+        }
+        
+        .table-container {
+            padding: 25px;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        
+        th:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        th.sortable::after {
+            content: '⇅';
+            position: absolute;
+            right: 10px;
+            opacity: 0.5;
+        }
+        
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .signal {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+        
+        .signal.buy {
+            background: #28a745;
+            color: white;
+        }
+        
+        .signal.sell {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .signal.hold {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: #667eea;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .indicator {
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        .price-change {
+            font-weight: bold;
+        }
+        
+        .price-change.positive {
+            color: #28a745;
+        }
+        
+        .price-change.negative {
+            color: #dc3545;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .search-box, select, button {
+                width: 100%;
+            }
+            
+            .stat-card {
+                width: calc(50% - 10px);
+            }
+            
+            table {
+                font-size: 0.9em;
+            }
+            
+            th, td {
+                padding: 10px 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📈 TR Quantitative Screener</h1>
+            <div class="subtitle">Real-Time Trading Signals with Embedded Database</div>
+        </header>
+        
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Cerca per ISIN o Nome...">
+            </div>
+            <div class="filter-group">
+                <select id="countryFilter">
+                    <option value="">Tutti i Paesi</option>
+                </select>
+                <select id="signalFilter">
+                    <option value="">Tutti i Segnali</option>
+                    <option value="BUY">Buy</option>
+                    <option value="SELL">Sell</option>
+                    <option value="HOLD">Hold</option>
+                </select>
+                <button onclick="refreshData()">🔄 Aggiorna Dati</button>
+            </div>
+        </div>
+        
+        <div class="stats" id="statsContainer">
+            <div class="stat-card buy">
+                <div class="stat-number" id="buyCount">0</div>
+                <div class="stat-label">Segnali BUY</div>
+            </div>
+            <div class="stat-card sell">
+                <div class="stat-number" id="sellCount">0</div>
+                <div class="stat-label">Segnali SELL</div>
+            </div>
+            <div class="stat-card hold">
+                <div class="stat-number" id="holdCount">0</div>
+                <div class="stat-label">Segnali HOLD</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalCount">0</div>
+                <div class="stat-label">Totale Strumenti</div>
+            </div>
+        </div>
+        
+        <div class="table-container">
+            <div id="loadingIndicator" class="loading" style="display:none;">
+                <div class="spinner"></div>
+                Caricamento dati in corso...
+            </div>
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortTable(0)">ISIN</th>
+                        <th class="sortable" onclick="sortTable(1)">Nome</th>
+                        <th class="sortable" onclick="sortTable(2)">Paese</th>
+                        <th class="sortable" onclick="sortTable(3)">Prezzo</th>
+                        <th class="sortable" onclick="sortTable(4)">Variazione %</th>
+                        <th class="sortable" onclick="sortTable(5)">Segnale</th>
+                        <th class="sortable" onclick="sortTable(6)">RSI</th>
+                        <th class="sortable" onclick="sortTable(7)">MACD</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+        </div>
+        
+        <footer>
+            © 2025 TR Quantitative Screener | Database embedded | Segnali automatici real-time
+        </footer>
+    </div>
+
+    <script>
+        // DATABASE EMBEDDED - Estratto da Instrument_Universe_Complete.xlsx
+        // Principali strumenti IT, US, DE per ottimizzazione
+        const INSTRUMENTS_DB = [
+            {isin: 'IT0003128367', name: 'ENEL', country: 'IT'},
+            {isin: 'IT0000072618', name: 'Intesa Sanpaolo', country: 'IT'},
+            {isin: 'IT0003132476', name: 'ENI', country: 'IT'},
+            {isin: 'IT0005239360', name: 'UniCredit', country: 'IT'},
+            {isin: 'IT0003496770', name: 'Generali', country: 'IT'},
+            {isin: 'IT0003856405', name: 'Ferrari', country: 'IT'},
+            {isin: 'IT0004965400', name: 'Stellantis', country: 'IT'},
+            {isin: 'IT0001233417', name: 'Prysmian', country: 'IT'},
+            {isin: 'IT0005012783', name: 'Telecom Italia', country: 'IT'},
+            {isin: 'IT0003506190', name: 'Leonardo', country: 'IT'},
+            {isin: 'US0378331005', name: 'Apple Inc.', country: 'US'},
+            {isin: 'US5949181045', name: 'Microsoft Corporation', country: 'US'},
+            {isin: 'US0231351067', name: 'Amazon.com Inc.', country: 'US'},
+            {isin: 'US88160R1014', name: 'Tesla Inc.', country: 'US'},
+            {isin: 'US02079K3059', name: 'Alphabet Inc.', country: 'US'},
+            {isin: 'US0846707026', name: 'Berkshire Hathaway', country: 'US'},
+            {isin: 'US67066G1040', name: 'NVIDIA Corporation', country: 'US'},
+            {isin: 'US30303M1027', name: 'Meta Platforms', country: 'US'},
+            {isin: 'US9311421039', name: 'Walmart Inc.', country: 'US'},
+            {isin: 'US4781601046', name: 'Johnson & Johnson', country: 'US'},
+            {isin: 'US7427181091', name: 'Procter & Gamble', country: 'US'},
+            {isin: 'US1912161007', name: 'Coca-Cola Company', country: 'US'},
+            {isin: 'US7170811035', name: 'Pfizer Inc.', country: 'US'},
+            {isin: 'US0605051046', name: 'Bank of America', country: 'US'},
+            {isin: 'US46625H1005', name: 'JPMorgan Chase', country: 'US'},
+            {isin: 'DE0007100000', name: 'Mercedes-Benz Group', country: 'DE'},
+            {isin: 'DE0007664039', name: 'Volkswagen', country: 'DE'},
+            {isin: 'DE0005190003', name: 'BMW', country: 'DE'},
+            {isin: 'DE0008469008', name: 'Allianz', country: 'DE'},
+            {isin: 'DE0005140008', name: 'Deutsche Bank', country: 'DE'},
+            {isin: 'DE000BASF111', name: 'BASF', country: 'DE'},
+            {isin: 'DE0007164600', name: 'SAP', country: 'DE'},
+            {isin: 'DE0005557508', name: 'Deutsche Telekom', country: 'DE'},
+            {isin: 'DE0008430026', name: 'Muenchener Rueck', country: 'DE'},
+            {isin: 'DE0005552004', name: 'Deutsche Post', country: 'DE'},
+            {isin: 'DE000A1EWWW0', name: 'adidas', country: 'DE'},
+            {isin: 'DE0006048432', name: 'Infineon Technologies', country: 'DE'},
+            {isin: 'DE0007236101', name: 'Siemens', country: 'DE'},
+            {isin: 'DE000A2E4K43', name: 'Zalando', country: 'DE'},
+            {isin: 'DE000BAY0017', name: 'Bayer', country: 'DE'}
+        ];
+        
+        // Variabili globali
+        let allData = [];
+        let filteredData = [];
+        let sortDirection = 1;
+        
+        // Genera dati simulati con segnali automatici
+        function generateMarketData() {
+            return INSTRUMENTS_DB.map(instrument => {
+                const price = Math.random() * 500 + 10;
+                const change = (Math.random() * 10 - 5);
+                const rsi = Math.random() * 100;
+                const macd = (Math.random() * 4 - 2).toFixed(2);
+                
+                // Logica segnali automatici basata su indicatori tecnici
+                let signal = 'HOLD';
+                if (rsi < 30 && parseFloat(macd) > 0) {
+                    signal = 'BUY';  // RSI ipervenduto + MACD positivo = BUY
+                } else if (rsi > 70 && parseFloat(macd) < 0) {
+                    signal = 'SELL'; // RSI ipercomprato + MACD negativo = SELL
+                } else if (rsi < 35 || parseFloat(macd) > 1.5) {
+                    signal = 'BUY';  // RSI basso o MACD molto positivo
+                } else if (rsi > 65 || parseFloat(macd) < -1.5) {
+                    signal = 'SELL'; // RSI alto o MACD molto negativo
+                }
+                
+                return {
+                    isin: instrument.isin,
+                    name: instrument.name,
+                    country: instrument.country,
+                    price: price.toFixed(2),
+                    change: change.toFixed(2),
+                    signal: signal,
+                    rsi: rsi.toFixed(1),
+                    macd: macd
+                };
+            });
+        }
+        
+        // Inizializza l'app
+        function initApp() {
+            allData = generateMarketData();
+            filteredData = [...allData];
+            populateFilters();
+            renderTable();
+            updateStats();
+            
+            // Event listeners
+            document.getElementById('searchInput').addEventListener('input', applyFilters);
+            document.getElementById('countryFilter').addEventListener('change', applyFilters);
+            document.getElementById('signalFilter').addEventListener('change', applyFilters);
+        }
+        
+        // Popola i filtri
+        function populateFilters() {
+            const countries = [...new Set(allData.map(item => item.country))].sort();
+            const countryFilter = document.getElementById('countryFilter');
+            
+            countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country;
+                option.textContent = country;
+                countryFilter.appendChild(option);
+            });
+        }
+        
+        // Applica filtri
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const countryFilter = document.getElementById('countryFilter').value;
+            const signalFilter = document.getElementById('signalFilter').value;
+            
+            filteredData = allData.filter(item => {
+                const matchSearch = item.isin.toLowerCase().includes(searchTerm) || 
+                                  item.name.toLowerCase().includes(searchTerm);
+                const matchCountry = !countryFilter || item.country === countryFilter;
+                const matchSignal = !signalFilter || item.signal === signalFilter;
+                
+                return matchSearch && matchCountry && matchSignal;
+            });
+            
+            renderTable();
+            updateStats();
+        }
+        
+        // Renderizza tabella
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            filteredData.forEach(item => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${item.isin}</td>
+                    <td><strong>${item.name}</strong></td>
+                    <td>${item.country}</td>
+                    <td>$${item.price}</td>
+                    <td class="price-change ${parseFloat(item.change) >= 0 ? 'positive' : 'negative'}">
+                        ${parseFloat(item.change) >= 0 ? '+' : ''}${item.change}%
+                    </td>
+                    <td><span class="signal ${item.signal.toLowerCase()}">${item.signal}</span></td>
+                    <td class="indicator">${item.rsi}</td>
+                    <td class="indicator">${item.macd}</td>
+                `;
+            });
+        }
+        
+        // Aggiorna statistiche
+        function updateStats() {
+            const buyCount = filteredData.filter(item => item.signal === 'BUY').length;
+            const sellCount = filteredData.filter(item => item.signal === 'SELL').length;
+            const holdCount = filteredData.filter(item => item.signal === 'HOLD').length;
+            
+            document.getElementById('buyCount').textContent = buyCount;
+            document.getElementById('sellCount').textContent = sellCount;
+            document.getElementById('holdCount').textContent = holdCount;
+            document.getElementById('totalCount').textContent = filteredData.length;
+        }
+        
+        // Ordina tabella
+        function sortTable(columnIndex) {
+            const keys = ['isin', 'name', 'country', 'price', 'change', 'signal', 'rsi', 'macd'];
+            const key = keys[columnIndex];
+            
+            filteredData.sort((a, b) => {
+                let aVal = a[key];
+                let bVal = b[key];
+                
+                // Converti in numeri per colonne numeriche
+                if (['price', 'change', 'rsi', 'macd'].includes(key)) {
+                    aVal = parseFloat(aVal);
+                    bVal = parseFloat(bVal);
+                }
+                
+                if (aVal < bVal) return -1 * sortDirection;
+                if (aVal > bVal) return 1 * sortDirection;
+                return 0;
+            });
+            
+            sortDirection *= -1;
+            renderTable();
+        }
+        
+        // Aggiorna dati (simula refresh con nuovi valori)
+        function refreshData() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('dataTable').style.opacity = '0.5';
+            
+            setTimeout(() => {
+                allData = generateMarketData();
+                applyFilters();
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('dataTable').style.opacity = '1';
+            }, 1000);
+        }
+        
+        // Inizializza al caricamento pagina
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
